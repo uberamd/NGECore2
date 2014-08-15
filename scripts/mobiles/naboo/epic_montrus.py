@@ -24,7 +24,7 @@ def addTemplate(core):
 	mobileTemplate.setOptionsBitmask(Options.INVULNERABLE)
 
 	templates = Vector()
-	templates.add('object/mobile/shared_dressed_ruffian_zabrak_female_01.iff')
+	templates.add('object/mobile/shared_dressed_ruffian_zabrak_female_01.iff') #wrong appearance
 	
 	
 	mobileTemplate.setTemplates(templates)
