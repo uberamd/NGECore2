@@ -21,11 +21,11 @@
  ******************************************************************************/
 package protocol.swg;
 
-import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 import org.apache.mina.core.buffer.IoBuffer;
 
+import resources.common.Opcodes;
 
 public class CmdStartScene extends SWGMessage {
 
@@ -62,7 +62,7 @@ public class CmdStartScene extends SWGMessage {
 		IoBuffer result = IoBuffer.allocate(47 + terrainFile.length() + sharedRaceTemplate.length()).order(ByteOrder.LITTLE_ENDIAN);
 		
 		result.putShort((short)9);
-		result.putInt(0x3AE6DFAE);
+		result.putInt(Opcodes.CmdStartScene);
 		result.put((byte)ignoreLayoutFiles);
 		result.putLong(characterId);
 		result.put(getAsciiString(terrainFile));
@@ -73,7 +73,7 @@ public class CmdStartScene extends SWGMessage {
 		result.put(getAsciiString(sharedRaceTemplate));
 		
 		result.putLong(time);
-		result.put(new byte[] { (byte)0x8B, (byte)0xC0, (byte)0xEA, (byte)0x4E });
+		result.put(new byte[] { (byte)0x8E, (byte)0xB5, (byte)0xEA, (byte)0x4E });
 		return result.flip();
 		
 	}

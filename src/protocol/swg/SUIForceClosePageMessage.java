@@ -44,6 +44,6 @@ public class SUIForceClosePageMessage extends SWGMessage {
 		result.putInt(0x990B5DE0);
 		result.putInt(windowId);
 		
-		return result;
+		return result.flip();
 	}
 }

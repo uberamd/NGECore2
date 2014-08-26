@@ -23,23 +23,33 @@ package resources.objects.group;
 
 import java.util.Vector;
 
+import resources.objects.ObjectMessageBuilder;
+import resources.objects.universe.UniverseObject;
 import engine.clients.Client;
 import engine.resources.objects.SWGObject;
 import engine.resources.scene.Point3D;
 import engine.resources.scene.Quaternion;
 
-
-public class GroupObject extends SWGObject {
+public class GroupObject extends UniverseObject {
 	
+	private static final long serialVersionUID = 1L;
 	private Vector<SWGObject> memberList = new Vector<SWGObject>();
 	private int memberListUpdateCounter;
 	private SWGObject groupLeader;
 	private SWGObject lootMaster;
 	private short groupLevel;
 	private int lootMode;
+	private transient GroupMessageBuilder messageBuilder;
+	private int chatRoomId;
+	
+	public static int FREE_FOR_ALL  = 0;
+	public static int MASTER_LOOTER = 1;
+	public static int LOTTERY       = 2;
+	
 	
 	public GroupObject(long objectId) {
-		super(objectId, null, new Point3D(0, 0, 0), new Quaternion(0, 0, 0, 1), "object/group/shared_group_object.iff");
+		super(objectId, null, new Point3D(0, 0, 0), new Quaternion(1, 0, 0, 0), "object/group/shared_group_object.iff");
+		messageBuilder = new GroupMessageBuilder(this);
 	}
 
 	public Vector<SWGObject> getMemberList() {
@@ -106,10 +116,59 @@ public class GroupObject extends SWGObject {
 		}
 	}
 
-	@Override
-	public void sendBaselines(Client client) {
-		// TODO Auto-generated method stub
+	public int getChatRoomId() {
+		synchronized(objectMutex) {
+			return chatRoomId;
+		}
+	}
+
+	public void setChatRoomId(int chatRoomId) {
+		synchronized(objectMutex) {
+			this.chatRoomId = chatRoomId;
+		}
+	}
+
+	public void addMember(SWGObject member) {
+		
+		if(memberList.size() >= 8 || member.getClient() == null)
+			return;
+		
+		memberList.add(member);
+		
+		setMemberListUpdateCounter(getMemberListUpdateCounter() + 1);
+		notifyObservers(messageBuilder.buildAddMemberDelta(member), false);
+		
+	}
+	
+	public void removeMember(SWGObject member) {
+		
+		if(memberList.size() <= 0 || member.getClient() == null)
+			return;
+		
+		
+		setMemberListUpdateCounter(getMemberListUpdateCounter() + 1);
+		notifyObservers(messageBuilder.buildRemoveMemberDelta(member), false);
+		
+		memberList.remove(member);
 		
 	}
 
+
+	@Override
+	public void sendBaselines(Client destination) {
+		
+		if(destination == null || destination.getSession() == null) {
+			System.out.println("NULL session");
+			return;
+		}
+		
+		destination.getSession().write(messageBuilder.buildBaseline3());
+		destination.getSession().write(messageBuilder.buildBaseline6());
+		
+	}
+	
+	public ObjectMessageBuilder getMessageBuilder() {
+		return messageBuilder;
+	}
+	
 }

@@ -21,6 +21,122 @@
  ******************************************************************************/
 package resources.objects.installation;
 
-public class InstallationObject {
+import java.io.Serializable;
+import java.util.Vector;
 
+import org.apache.mina.core.buffer.IoBuffer;
+
+import main.NGECore;
+import protocol.swg.UpdatePVPStatusMessage;
+import engine.clients.Client;
+import engine.resources.common.CRC;
+import engine.resources.objects.Baseline;
+import engine.resources.scene.Planet;
+import engine.resources.scene.Point3D;
+import engine.resources.scene.Quaternion;
+import resources.datatables.Options;
+import resources.objects.ObjectMessageBuilder;
+import resources.objects.creature.CreatureObject;
+import resources.objects.tangible.TangibleObject;
+
+public class InstallationObject extends TangibleObject implements Serializable {
+	
+	private static final long serialVersionUID = 1L;
+	private transient InstallationMessageBuilder messageBuilder;
+
+	public InstallationObject(long objectID, Planet planet, Point3D position, Quaternion orientation, String template) {
+		super(objectID, planet, position, orientation, template);
+		messageBuilder = new InstallationMessageBuilder(this);
+	}	
+	
+//	@Override
+//	public void sendBaselines(Client destination) {
+//		
+//		if(destination == null || destination.getSession() == null) {
+//			//System.out.println("NULL session");
+//			return;
+//		}
+//		
+//		destination.getSession().write(messageBuilder.buildBaseline3(this));
+//		//destination.getSession().write(messageBuilder.buildBaseline6(this));
+//				
+//		if(destination != getClient()) {
+//			UpdatePVPStatusMessage upvpm = new UpdatePVPStatusMessage(getObjectID(), NGECore.getInstance().factionService.calculatePvpStatus((CreatureObject) destination.getParent(), this), getFaction());
+//			destination.getSession().write(upvpm.serialize());
+//		}
+//	}
+	
+	public Baseline getBaseline3() {
+		Baseline baseline = super.getBaseline3();
+		baseline.put("activeFlag", false);
+		baseline.put("PowerReserves", 0);
+		baseline.put("PowerCost", 0);
+		return baseline;
+	}
+
+	
+	@Override
+	public void sendBaselines(Client destination) {
+		if (destination != null && destination.getSession() != null) {
+			
+			// Factional peculiarities
+			Baseline baseLine3 = getBaseline(3);
+			if (destination.getParent() instanceof CreatureObject){
+				if (((CreatureObject) destination.getParent()).isPlayer() && ((CreatureObject) destination.getParent()).getFaction()!=this.getFaction()){
+					int optionsBitMask = getOptionsBitmask();
+					if (getOption(Options.QUEST))
+						optionsBitMask = optionsBitMask & ~Options.QUEST;
+					if (!getOption(Options.ATTACKABLE))
+						optionsBitMask = optionsBitMask | Options.ATTACKABLE;
+					
+					baseLine3.set("optionsBitmask", optionsBitMask);
+				}
+			}
+						
+			//destination.getSession().write(getBaseline(3).getBaseline());
+			destination.getSession().write(baseLine3.getBaseline());
+			destination.getSession().write(getBaseline(6).getBaseline());
+			
+			Client parent = ((getGrandparent() == null) ? null : getGrandparent().getClient());
+			
+			if (parent != null && destination == parent) {
+				destination.getSession().write(getBaseline(8).getBaseline());
+				destination.getSession().write(getBaseline(9).getBaseline());
+			}
+			
+			if (destination.getParent() != this) {
+				UpdatePVPStatusMessage upvpm = new UpdatePVPStatusMessage(getObjectID());
+				upvpm.setFaction(CRC.StringtoCRC(getFaction()));
+//				if (this.getTemplate().contains("turret")){
+//					System.out.println("TURRET RESULT " + NGECore.getInstance().factionService.calculatePvpStatus((CreatureObject) destination.getParent(), this));
+//				}
+				upvpm.setStatus(NGECore.getInstance().factionService.calculatePvpStatus((CreatureObject) destination.getParent(), this));
+				destination.getSession().write(upvpm.serialize());
+			}
+		}
+	}
+	
+	@Override
+	public void notifyClients(IoBuffer buffer, boolean notifySelf) {
+		notifyObservers(buffer, false);
+	}
+	
+	@Override
+	public ObjectMessageBuilder getMessageBuilder() {
+		synchronized(objectMutex) {
+			if (messageBuilder == null) {
+				messageBuilder = new InstallationMessageBuilder(this);
+			}		
+			return messageBuilder;
+		}
+	}
+	
+	
+	@Override
+	public void initAfterDBLoad() {
+		super.init();
+		messageBuilder = new InstallationMessageBuilder(this);
+		defendersList = new Vector<TangibleObject>();
+	}
+		
 }

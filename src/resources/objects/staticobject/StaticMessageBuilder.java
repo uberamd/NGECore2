@@ -21,6 +21,29 @@
  ******************************************************************************/
 package resources.objects.staticobject;
 
-public class StaticMessageBuilder {
+import java.util.Map;
 
+import resources.objects.ObjectMessageBuilder;
+import engine.resources.objects.Builder;
+
+public class StaticMessageBuilder extends ObjectMessageBuilder {
+	
+	public StaticMessageBuilder(StaticObject object) {
+		super(object);
+	}
+	
+	public StaticMessageBuilder() {
+		super();
+	}
+	
+	@Override
+	public void buildBaseline3(Map<Integer, Builder> baselineBuilders, Map<Integer, Builder> deltaBuilders) {
+		super.buildBaseline3(baselineBuilders, deltaBuilders);
+	}
+	
+	@Override
+	public void buildBaseline6(Map<Integer, Builder> baselineBuilders, Map<Integer, Builder> deltaBuilders) {
+		super.buildBaseline6(baselineBuilders, deltaBuilders);
+	}
+	
 }

@@ -7,6 +7,9 @@ def setup():
 	
 def run(core, actor, target, commandString):
 
+	if actor.getPosture() == 13 or actor.getPosture() == 14:
+		return
+
 	if len(commandString) > 0:
 		parsedMsg = commandString.split(',', 4)
 		x = float(parsedMsg[0])
@@ -20,10 +23,9 @@ def run(core, actor, target, commandString):
 		actor.setStateBitmask(32768)
 		actor.setTurnRadius(0)
 		return
-
+	# sit w/o chair
 	actor.setPosture(8)
 	actor.setSpeedMultiplierBase(0)
 	actor.setTurnRadius(0)
-
 	return
 	

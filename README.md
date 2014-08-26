@@ -12,8 +12,8 @@ The Engine(NGEngine) is a closed source library and is only licensed for use wit
 Requirements for Building the Core:
 ======== 
 
-- JDK 7
-- An IDE like Eclipse Juno
+- JDK 8
+- A Java 8 compatible IDE like Eclipse Kepler (https://wiki.eclipse.org/JDT/Eclipse_Java_8_Support_For_Kepler)
 - A valid Star Wars Galaxies Installation with the final patch
 - Postgresql server (www.postgresql.org)
 - TRE Explorer(http://forum.modsource.org/index.php?PHPSESSID=bf02fd8244123807f4716c1686abb59f&action=dlattach;topic=33.0;attach=49)
@@ -43,7 +43,10 @@ Then export the following folders to your clientdata folder(should be located in
 - object
 - quest
 - snapshot
+- string
 - terrain
+
+Export the same folders from sku1_client.toc, sku2_client.toc and sku3_client.toc to avoid errors with kashyyyk.
 
 Now you're ready to run the core!
 
@@ -57,3 +60,7 @@ To contribute, simply commit your changes to your fork of the project and then s
 Now your changes will be reviewed by other developers and once the changes are approved your code will be merged into the main repository.
 
 For more information please visit the wiki: https://github.com/ProjectSWGCore/NGECore2/wiki
+
+Documentation can be found here: http://projectswg.com/doc/
+
+Please prefix all commits with Added, Changed, Removed or Fixed. If you don't have enough room for multiple changes, use the extended description. Try not to bundle multiple changes into one vague line (ie. "Changed various combat things"). Try to make all commit messages understandable by non-programmers.

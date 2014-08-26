@@ -21,6 +21,38 @@
  ******************************************************************************/
 package resources.objects.mission;
 
-public class MissionMessageBuilder {
+import java.util.Map;
+import engine.resources.objects.Builder;
+import resources.objects.intangible.IntangibleMessageBuilder;
 
+public class MissionMessageBuilder extends IntangibleMessageBuilder {
+	
+	public MissionMessageBuilder(MissionObject object) {
+		super(object);
+	}
+	
+	public MissionMessageBuilder() {
+		super();
+	}
+	
+	@Override
+	public void buildBaseline3(Map<Integer, Builder> baselineBuilders, Map<Integer, Builder> deltaBuilders) {
+		super.buildBaseline3(baselineBuilders, deltaBuilders);
+	}
+	
+	@Override
+	public void buildBaseline6(Map<Integer, Builder> baselineBuilders, Map<Integer, Builder> deltaBuilders) {
+		super.buildBaseline6(baselineBuilders, deltaBuilders);
+	}
+	
+	@Override
+	public void buildBaseline8(Map<Integer, Builder> baselineBuilders, Map<Integer, Builder> deltaBuilders) {
+		super.buildBaseline8(baselineBuilders, deltaBuilders);
+	}
+	
+	@Override
+	public void buildBaseline9(Map<Integer, Builder> baselineBuilders, Map<Integer, Builder> deltaBuilders) {
+		super.buildBaseline9(baselineBuilders, deltaBuilders);
+	}
+	
 }

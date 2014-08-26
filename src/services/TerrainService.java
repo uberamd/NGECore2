@@ -23,24 +23,97 @@ package services;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+import resources.common.FileUtilities;
+import resources.common.collidables.CollidableCircle;
+import resources.datatables.ClientPOIRadius;
+import services.playercities.ClientRegion;
+import engine.clientdata.ClientFileManager;
+import engine.clientdata.visitors.DatatableVisitor;
+import engine.resources.common.CRC;
+import engine.resources.config.Config;
+import engine.resources.objects.SWGObject;
 import engine.resources.scene.Planet;
-
-
+import engine.resources.scene.Point3D;
 import main.NGECore;
 
 public class TerrainService {
 	
 	private NGECore core;
 	private List<Planet> planets = Collections.synchronizedList(new ArrayList<Planet>());
+	private Map<Planet, List<CollidableCircle>> noBuildAreas = new ConcurrentHashMap<Planet, List<CollidableCircle>>();
+	private Map<Planet, List<ClientRegion>> clientRegions = new ConcurrentHashMap<Planet, List<ClientRegion>>();
 
 	public TerrainService(NGECore core) {
-
-		this.core = core;
-	
+		this.core = core;	
 	}
 	
+	public void loadClientPois()  {
+		
+		try {
+			
+			DatatableVisitor poiTable = ClientFileManager.loadFile("datatables/clientpoi/clientpoi.iff", DatatableVisitor.class);
+			
+			for (int i = 0; i < poiTable.getRowCount(); i++) {
+				
+				// Planet planet = getPlanetByName((String) poiTable.getObject(i, 0)); Has this ever worked?
+				Planet planet = getPlanetByName((String) poiTable.getObject(i, 2));
+
+				if(planet == null)
+					continue;
+				
+				float x = (Float) poiTable.getObject(i, 4);
+				float z = (Float) poiTable.getObject(i, 6);
+				String POIName = (String) poiTable.getObject(i, 0);
+				int radius = ClientPOIRadius.getRadius(POIName);
+								
+				CollidableCircle poiArea = new CollidableCircle(new Point3D(x, 0, z), radius, planet);
+				noBuildAreas.get(planet).add(poiArea);
+				
+			}
+
+		} catch (InstantiationException | IllegalAccessException e) {
+			e.printStackTrace();
+		}		
+		
+	}
+	
+	private void loadClientRegions(Planet planet)  {
+		
+		if(!FileUtilities.doesFileExist("clientdata/datatables/clientregion/" + planet.getName() + ".iff"))
+			return;
+
+		try {
+			
+			DatatableVisitor regionTable = ClientFileManager.loadFile("datatables/clientregion/" + planet.getName() + ".iff", DatatableVisitor.class);
+			
+			for (int i = 0; i < regionTable.getRowCount(); i++) {
+									
+				String name = (String) regionTable.getObject(i, 0);
+				float x = (Float) regionTable.getObject(i, 1);
+				float z = (Float) regionTable.getObject(i, 2);
+				float radius = (Float) regionTable.getObject(i, 3);
+				// Account for more extended no-build radii like they were on live 
+				// Issue #849
+				radius *= 1.1;
+					
+				CollidableCircle region = new CollidableCircle(new Point3D(x, 0, z), radius, planet);
+				noBuildAreas.get(planet).add(region);
+				ClientRegion clientRegion = new ClientRegion(name, new Point3D(x, 0, z), radius, planet);
+				clientRegions.get(planet).add(clientRegion);
+			}
+
+		} catch (InstantiationException | IllegalAccessException e) {
+			e.printStackTrace();
+		}		
+		
+	}
+
+
 	public boolean isWater(int planetId, float x, float z) {
 		
 		if(getPlanetByID(planetId) == null)
@@ -68,7 +141,6 @@ public class TerrainService {
 			return Float.NaN;
 		Planet planet = getPlanetByID(planetId);
 		float height = planet.getTerrainVisitor().getHeight(x, z);
-		System.out.println("Height: " + height);
 		return height; 
 	}
 	
@@ -89,7 +161,17 @@ public class TerrainService {
 	
 	public Planet getPlanetByName(String name) {
 		for (int i = 0; i < planets.size(); i++) {
-			if (planets.get(i).getName() == name) {
+			if (planets.get(i).getName().equalsIgnoreCase(name)) {
+				return planets.get(i);
+			}
+		}
+		
+		return null;
+	}
+	
+	public Planet getPlanetByCrc(int crc) {
+		for (int i = 0; i < planets.size(); i++) {
+			if (CRC.StringtoCRC(planets.get(i).getName().toLowerCase()) == crc) {
 				return planets.get(i);
 			}
 		}
@@ -99,7 +181,7 @@ public class TerrainService {
 	
 	public Planet getPlanetByPath(String path) {
 		for (int i = 0; i < planets.size(); i++) {
-			if (planets.get(i).getPath() == path) {
+			if (planets.get(i).getPath().equals(path)) {
 				return planets.get(i);
 			}
 		}
@@ -110,24 +192,144 @@ public class TerrainService {
 	public void addPlanet(int ID, String name, String path, boolean loadSnapshot) {
 		Planet planet = new Planet(ID, name, path, loadSnapshot);
 		planets.add(planet);
+		core.mapService.addPlanet(planet);
+		noBuildAreas.put(planet, new ArrayList<CollidableCircle>());
+		clientRegions.put(planet, new ArrayList<ClientRegion>());
+		loadClientRegions(planet);
 	}
 
 	
 	public void loadSnapShotObjects() {
 		
-		for(Planet planet : planets) {
+		Map<Planet, Thread> threadMap = new HashMap<Planet, Thread>();
+		
+		for(final Planet planet : planets) {
 			
 			if(planet.getSnapshotVisitor() != null) {
-				
-				core.objectService.loadSnapshotObjects(planet);
-				
+				Thread thread = new Thread(() -> {
+
+					Config options = core.getOptions();
+
+					if (options != null && options.getInt("LOAD.SNAPSHOT_OBJECTS") > 0) {
+						if (!core.getExcludedDevelopers().contains(System.getProperty("user.name"))){
+							try {							
+								core.objectService.loadSnapshotObjects(planet);
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+						}
+					}
+					
+					if (options != null && options.getInt("LOAD.BUILDOUT_OBJECTS") > 0) {
+						if (!core.getExcludedDevelopers().contains(System.getProperty("user.name"))){								
+							if (! options.keyExists("LOAD.BUILDOUT_ONLY_FOR")){
+								try {
+									System.out.println("Loading buildout objects for: " + planet.getName());
+									core.objectService.loadBuildoutObjects(planet);
+									System.out.println("Finished loading buildout objects for: " + planet.getName());
+								} catch (InstantiationException | IllegalAccessException e) {
+									e.printStackTrace();
+								}
+							} else {
+								if (planet.getName().trim().equals(options.getString("LOAD.BUILDOUT_ONLY_FOR").trim())){
+									try {		
+										System.out.println("Loading buildout objects for: " + planet.getName());
+										core.objectService.loadBuildoutObjects(planet);
+										System.out.println("Finished loading buildout objects for " + planet.getName());
+									} catch (InstantiationException | IllegalAccessException e) {
+										e.printStackTrace();
+									}
+								}
+							}
+						}
+					}
+					
+				});
+				thread.start();
+				threadMap.put(planet, thread);
 			}
 			
 		}
 		
+		// wait for threads to finish loading
+		for(Planet planet : planets) {
+			try {
+				if(threadMap.get(planet) != null)
+					threadMap.get(planet).join();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		/*synchronized(core.objectService.getObjectList()) {
+		
+			for(SWGObject object : core.objectService.getObjectList().values()) {
+				
+				if(!(object instanceof BuildingObject) || object.isInSnapshot())
+					continue;
+				
+				BuildingObject building = (BuildingObject) object;
+				final Set<CreatureObject> creatures = new HashSet<CreatureObject>();
+				building.viewChildren(building, true, true, new Traverser() {
+
+					@Override
+					public void process(SWGObject obj) {
+						if(obj instanceof CreatureObject)
+							creatures.add((CreatureObject) obj);
+					}
+					
+				});
+				for(CreatureObject creature : creatures) {
+					long parentId = creature.getParentId();
+					creature.getContainer().remove(creature);
+					creature.setParentId(parentId);
+				}
+				if(building.getTransaction() == null)
+					continue;
+				building.createTransaction(core.getBuildingODB().getEnvironment());
+				core.getBuildingODB().put(building, Long.class, BuildingObject.class, building.getTransaction());
+				building.getTransaction().commitSync();
+				
+			}
+			
+		}*/
+		
 	}
 	
+	public boolean canBuildAtPosition(SWGObject object, float x, float z) {
+		
+		if(isWater(object.getPlanet(), x, z))
+			return false;
+		
+		Point3D position = new Point3D(x, 0, z);
+		
+		for(CollidableCircle noBuildArea : noBuildAreas.get(object.getPlanet())) {
+			if(noBuildArea.doesCollide(position)) {
+				return false;
+			}
+		}
+		
+		return true;
+		
+	}
+
+	public boolean isWater(int planetId, Point3D worldPosition) {
+		if(getPlanetByID(planetId) == null)
+			return false;
+		
+		Planet planet = getPlanetByID(planetId);
+
+		return planet.getTerrainVisitor().isWater(worldPosition.x, worldPosition.z);
+	}
 	
-	
+	public List<ClientRegion> getClientRegionsForPlanet(Planet planet) {
+		return clientRegions.get(planet);
+	}
+
+	public List<ClientRegion> getClientRegions() {
+		List<ClientRegion> regions = new ArrayList<ClientRegion>();
+		clientRegions.values().forEach(regions::addAll);
+		return regions;
+	}
 
 }

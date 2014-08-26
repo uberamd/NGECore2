@@ -41,12 +41,29 @@ pt_sword_glint
 *.0
 cachedir/
 appearance/
+clientdata/
 *.class
 
 # SWG Client Folders
 footprint/
 interiorlayout/
-quest/
+clientdata/quest/
+
+# PSWG Object Databases
+odb/building/je.info.*
+odb/creature/je.info.*
+odb/doids/je.info.*
+odb/guild/je.info.*
+odb/mails/je.info.*
+odb/oids/je.info.*
+odb/chatRooms/je.info.*
+odb/resourcehistory/je.info.*
+odb/resourceroots/je.info.*
+odb/resources/je.info.*
+odb/auction/je.info.*
+odb/swgobjects/je.info.*
+odb/bounties/je.info.*
+odb/cities/je.info.*
 
 # External tool builders
 .externalToolBuilders/
@@ -60,6 +77,9 @@ quest/
 # PDT-specific
 .buildpath
 
+# Log files
+debuglogs/
+logs/
 
 #################
 ## Visual Studio
@@ -193,3 +213,9 @@ pip-log.txt
 
 # Mac crap
 .DS_Store
+
+
+#############
+## PyCharm
+#############
+.idea

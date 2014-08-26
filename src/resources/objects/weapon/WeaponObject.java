@@ -21,158 +21,243 @@
  ******************************************************************************/
 package resources.objects.weapon;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.Serializable;
 
-import com.sleepycat.persist.model.NotPersistent;
-import com.sleepycat.persist.model.Persistent;
+import org.apache.mina.core.buffer.IoBuffer;
 
+import engine.resources.objects.Baseline;
+import resources.datatables.Elemental;
+import resources.datatables.WeaponType;
+import resources.objects.tangible.TangibleObject;
 import engine.clients.Client;
-import engine.resources.objects.SWGObject;
 import engine.resources.scene.Planet;
 import engine.resources.scene.Point3D;
 import engine.resources.scene.Quaternion;
-import resources.objects.tangible.TangibleMessageBuilder;
 
-@Persistent
-public class WeaponObject extends SWGObject {
+public class WeaponObject extends TangibleObject implements Serializable {
 	
-	// TODO: Thread safety
+	private static final long serialVersionUID = 1L;
 	
-	private int incapTimer = 10;
-	private int conditionDamage = 0;
-
-	private byte[] customization;
-	private List<Integer> componentCustomizations = new ArrayList<Integer>();
-	private int optionsBitmask = 0;
-	private int maxDamage = 0;
-	private boolean staticObject = true;
-	@NotPersistent
-	private WeaponMessageBuilder messageBuilder;
-	
-	private float attackSpeed = 1;
+	private transient WeaponMessageBuilder messageBuilder;
 	
 	public WeaponObject(long objectID, Planet planet, String template) {
 		super(objectID, planet, new Point3D(0, 0, 0), new Quaternion(1, 0, 1, 0), template);
-		messageBuilder = new WeaponMessageBuilder(this);
+		if (this.getClass().getSimpleName().equals("WeaponObject")) setIntAttribute("volume", 1);
+		setStringAttribute("cat_wpn_damage.damage", "0-0");
 	}
 	
-	public WeaponObject(long objectID, Planet planet, String template, Point3D position, Quaternion orientation) {
+	public WeaponObject(long objectID, Planet planet, Point3D position, Quaternion orientation, String template) {
 		super(objectID, planet, position, orientation, template);
-		messageBuilder = new WeaponMessageBuilder(this);
+		if (this.getClass().getSimpleName().equals("WeaponObject")) setIntAttribute("volume", 1);
+		setStringAttribute("cat_wpn_damage.damage", "0-0");
 	}
-
 	
 	public WeaponObject() {
 		super();
-		messageBuilder = new WeaponMessageBuilder(this);
 	}
 	
-	public int getIncapTimer() {
-		return incapTimer;
+	public void initAfterDBLoad() {
+		super.initAfterDBLoad();
 	}
-
-	public void setIncapTimer(int incapTimer) {
-		this.incapTimer = incapTimer;
+	
+	@Override
+	public Baseline getOtherVariables() {
+		Baseline baseline = super.getOtherVariables();
+		return baseline;
 	}
-
-	public int getConditionDamage() {
-		return conditionDamage;
+	
+	@Override
+	public Baseline getBaseline3() {
+		Baseline baseline = super.getBaseline3();
+		baseline.put("attackSpeed", (float) 0);
+		baseline.put("14", 0);
+		baseline.put("15", 0);
+		baseline.put("maxRange", (float) 0);
+		baseline.put("17", 0); // Could be lightsaber color?  Seen as 2 on a saber
+		baseline.put("weaponParticleEffect", 0);
+		baseline.put("19", 0); // something to do with particle color
+		return baseline;
 	}
-
-	public void setConditionDamage(int conditionDamage) {
-		this.conditionDamage = conditionDamage;
+	
+	@Override
+	public Baseline getBaseline6() {
+		Baseline baseline = super.getBaseline6();
+		baseline.put("weaponType", WeaponType.UNARMED);
+		return baseline;
 	}
-
-	public byte[] getCustomization() {
-		return customization;
+	
+	@Override
+	public Baseline getBaseline8() {
+		Baseline baseline = super.getBaseline8();
+		return baseline;
 	}
-
-	public void setCustomization(byte[] customization) {
-		this.customization = customization;
+	
+	@Override
+	public Baseline getBaseline9() {
+		Baseline baseline = super.getBaseline9();
+		return baseline;
 	}
-
-	public List<Integer> getComponentCustomizations() {
-		return componentCustomizations;
+	
+	public float getAttackSpeed() {
+		return (float) getBaseline(3).get("attackSpeed");
 	}
-
-	public void setComponentCustomizations(List<Integer> componentCustomizations) {
-		this.componentCustomizations = componentCustomizations;
+	
+	public void setAttackSpeed(float attackSpeed) {
+		if ((int) attackSpeed != attackSpeed) {
+			setFloatAttribute("cat_wpn_damage.wpn_attack_speed", attackSpeed);
+		} else {
+			setIntAttribute("cat_wpn_damage.wpn_attack_speed", (int) attackSpeed);
+		}
+		
+		setIntAttribute("cat_wpn_damage.dps", getDamagePerSecond());
+		notifyClients(getBaseline(3).set("attackSpeed", attackSpeed), false);
 	}
-
-	public int getOptionsBitmask() {
-		return optionsBitmask;
+	
+	public float getMaxRange() {
+		return (float) getBaseline(3).get("maxRange");
 	}
-
-	public void setOptionsBitmask(int optionsBitmask) {
-		this.optionsBitmask = optionsBitmask;
+	
+	public void setMaxRange(float maxRange) {
+		if ((int) maxRange != maxRange) {
+			setStringAttribute("cat_wpn_damage.wpn_range", "0-" + String.valueOf(maxRange) + "m");
+		} else {
+			setStringAttribute("cat_wpn_damage.wpn_range", "0-" + String.valueOf((int) maxRange) + "m");
+		}
+		
+		notifyClients(getBaseline(3).set("maxRange", maxRange), false);
 	}
-
-	public int getMaxDamage() {
-		return maxDamage;
+	
+	public int getWeaponParticleEffect() {
+		return (int) getBaseline(3).get("weaponParticleEffect");
 	}
-
-	public void setMaxDamage(int maxDamage) {
-		this.maxDamage = maxDamage;
+	
+	public void setWeaponParticleEffect(int weaponParticleEffect) {
+		notifyClients(getBaseline(3).set("weaponParticleEffect", weaponParticleEffect), false);
 	}
-
-	public boolean isStaticObject() {
-		return staticObject;
-	}
-
-	public void setStaticObject(boolean staticObject) {
-		this.staticObject = staticObject;
-	}
-
+	
 	public int getWeaponType() {
+		if (getStringAttribute("cat_wpn_damage.wpn_category") == null) {
+			System.err.println("Error: Weapon Type not defined for " + getTemplate());
+		}
 		
-		int weaponType = -1;
-		
-		String template = getTemplate();
-		
-		if(template.contains("rifle")) weaponType = 0;
-		if(template.contains("carbine")) weaponType = 1;
-		if(template.contains("pistol")) weaponType = 2;
-		if(template.contains("heavy")) weaponType = 3;
-		if(template.contains("sword") || template.contains("baton")) weaponType = 4;
-		if(template.contains("2h_sword") || template.contains("axe")) weaponType = 5;
-		if(template.contains("unarmed")) weaponType = 6;
-		if(template.contains("polearm") || template.contains("lance")) weaponType = 7;
-		if(template.contains("thrown")) weaponType = 8;
-		if(template.contains("lightsaber_one_handed")) weaponType = 9;
-		if(template.contains("lightsaber_two_handed")) weaponType = 10;
-		if(template.contains("lightsaber_polearm")) weaponType = 11;
-
-		if(weaponType == -1)
-			weaponType = 6;
-		
-		return weaponType;
-
+		return (int) getBaseline(6).get("weaponType");
 	}
-
+	
+	public void setWeaponType(int weaponType) {
+		setStringAttribute("cat_wpn_damage.wpn_category", "@obj_attr_n:wpn_category_" + weaponType);
+		notifyClients(getBaseline(6).set("weaponType", weaponType), false);
+	}
+	
+	public int getMaxDamage() {
+		return Integer.parseInt(getStringAttribute("cat_wpn_damage.damage").split("-")[1]);
+	}
+	
+	public void setMaxDamage(int maxDamage) {
+		setStringAttribute("cat_wpn_damage.damage", String.valueOf(getMinDamage()) + "-" + String.valueOf(maxDamage));
+		setIntAttribute("cat_wpn_damage.dps", getDamagePerSecond());
+	}
+	
+	public int getMinDamage() {
+		return Integer.parseInt(getStringAttribute("cat_wpn_damage.damage").split("-")[0]);
+	}
+	
+	public void setMinDamage(int minDamage) {
+		setStringAttribute("cat_wpn_damage.damage", String.valueOf(minDamage) + "-" + String.valueOf(getMaxDamage()));
+		setIntAttribute("cat_wpn_damage.dps", getDamagePerSecond());
+	}
+	
+	public int getElementalDamage() {
+		return getIntAttribute("cat_wpn_damage.wpn_elemental_value");
+	}
+	
+	public void setElementalDamage(int elementalDamage) {
+		setIntAttribute("cat_wpn_damage.wpn_elemental_value", elementalDamage);
+		setIntAttribute("cat_wpn_damage.dps", getDamagePerSecond());
+	}
+	
+	public String getElementalType() {
+		if (getStringAttribute("cat_wpn_damage.wpn_elemental_type") != null) {
+			return getStringAttribute("cat_wpn_damage.wpn_elemental_type").replace("@obj_attr_n:elemental_", "");
+		}
+		
+		return null;
+	}
+	
+	public void setElementalType(String elementalType) {
+		setStringAttribute("cat_wpn_damage.wpn_elemental_type", "@obj_attr_n:elemental_" + elementalType);
+		setWeaponParticleEffect(Elemental.getElementalNum(getElementalType()));
+	}
+	
+	public String getDamageType() {
+		return getStringAttribute("cat_wpn_damage.wpn_damage_type").replace("@obj_attr_n:armor_eff_", "");
+	}
+	
+	public void setDamageType(String damageType) {
+		setStringAttribute("cat_wpn_damage.wpn_damage_type", "@obj_attr_n:armor_eff_" + damageType);
+		setWeaponParticleEffect(Elemental.getElementalNum(getDamageType()));
+	}
+	
+	public int getDamagePerSecond() {
+		if (getAttributes().containsKey("cat_wpn_damage.damage") && getAttributes().containsKey("cat_wpn_damage.wpn_attack_speed")) {
+			if (getElementalType() != null) {
+				return (int) (((getMaxDamage() + getElementalDamage()  + getMinDamage() + getElementalDamage()) / 2 + getElementalDamage()) * (1 / getAttackSpeed()));
+			} else {
+				return (int) (((getMaxDamage() + getMinDamage()) / 2 ) * (1 / getAttackSpeed()));
+			}
+		} else {
+			return 0;
+		}
+	}
+	
+	public boolean isMelee() {
+		int weaponType = getWeaponType();
+		
+		if (weaponType == WeaponType.ONEHANDEDMELEE || weaponType == WeaponType.TWOHANDEDMELEE || weaponType == WeaponType.UNARMED || weaponType == WeaponType.POLEARMMELEE || weaponType == WeaponType.ONEHANDEDSABER || weaponType == WeaponType.TWOHANDEDSABER || weaponType == WeaponType.POLEARMSABER) {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	public boolean isRanged() {
+		int weaponType = getWeaponType();
+		
+		if (weaponType == WeaponType.RIFLE || weaponType == WeaponType.CARBINE || weaponType == WeaponType.PISTOL || weaponType == WeaponType.FLAMETHROWER || weaponType == WeaponType.HEAVYWEAPON) {
+			return true;
+		}
+			
+		return false;
+	}
+	
+	@Override
+	public void notifyClients(IoBuffer buffer, boolean notifySelf) {
+		notifyObservers(buffer, notifySelf);
+	}
+	
+	@Override
+	public WeaponMessageBuilder getMessageBuilder() {
+		synchronized(objectMutex) {
+			if (messageBuilder == null) {
+				messageBuilder = new WeaponMessageBuilder(this);
+			}
+			
+			return messageBuilder;
+		}
+	}
+	
 	@Override
 	public void sendBaselines(Client destination) {
-		if(destination == null || destination.getSession() == null)
-			return;
-		
-		destination.getSession().write(messageBuilder.buildBaseline3());
-		destination.getSession().write(messageBuilder.buildBaseline6());
-		destination.getSession().write(messageBuilder.buildBaseline8());
-		destination.getSession().write(messageBuilder.buildBaseline9());
-
-		
-	}
-
-	public float getAttackSpeed() {
-		return attackSpeed;
-	}
-
-	public void setAttackSpeed(float attackSpeed) {
-		this.attackSpeed = attackSpeed;
+		if (destination != null && destination.getSession() != null) {
+			destination.getSession().write(getBaseline(3).getBaseline());
+			destination.getSession().write(getBaseline(6).getBaseline());
+			
+			Client parent = ((getGrandparent() == null) ? null : getGrandparent().getClient());
+			
+			if (parent != null && destination == parent) {
+				destination.getSession().write(getBaseline(8).getBaseline());
+				destination.getSession().write(getBaseline(9).getBaseline());
+			}
+		}
 	}
 	
-	public WeaponMessageBuilder getMessageBuilder() {
-		return messageBuilder;
-	}
-
 }

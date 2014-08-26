@@ -23,16 +23,19 @@ package services;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 import org.apache.mina.core.buffer.SimpleBufferAllocator;
 
 import main.NGECore;
-
 import protocol.swg.AttributeListMessage;
-
+import resources.objects.creature.CreatureObject;
+import engine.resources.common.Stf;
 import engine.resources.objects.SWGObject;
 import engine.resources.service.INetworkDispatch;
 import engine.resources.service.INetworkRemoteEvent;
+
+@SuppressWarnings("unused")
 
 public class AttributeService implements INetworkDispatch {
 
@@ -44,9 +47,7 @@ public class AttributeService implements INetworkDispatch {
 	}
 
 	@Override
-	public void insertOpcodes(Map<Integer, INetworkRemoteEvent> arg0,
-			Map<Integer, INetworkRemoteEvent> arg1) {
-		// TODO Auto-generated method stub
+	public void insertOpcodes(Map<Integer, INetworkRemoteEvent> arg0, Map<Integer, INetworkRemoteEvent> arg1) {
 		
 	}
 
@@ -64,7 +65,19 @@ public class AttributeService implements INetworkDispatch {
 		if(requester.getClient() == null || requester.getClient().getSession() == null)
 			return;
 		
-		AttributeListMessage message = new AttributeListMessage(new HashMap<String, String>(target.getAttributes()), target.getObjectID(), bufferPool);
+		// Color collection used in attribute based on whether collection is complete or not
+		if(target.getAttachment("CollectionItemName") != null)
+		{
+			String collectionName = new Stf("@collection_n:" + (String) target.getAttachment("AddToCollection")).getStfValue().replace(":", " -");
+			
+			if(core.collectionService.isComplete((CreatureObject) requester, (String) target.getAttachment("CollectionItemName")))
+			{
+				target.getAttributes().put("@obj_attr_n:collection_name", "\\#FF0000 " + collectionName); 
+			}
+			else target.getAttributes().put("@obj_attr_n:collection_name", "\\#00FF00 " + collectionName); 
+		}
+		
+		AttributeListMessage message = new AttributeListMessage(target, bufferPool);
 		requester.getClient().getSession().write(message.serialize());
 	}
 

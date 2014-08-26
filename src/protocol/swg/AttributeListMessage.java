@@ -22,23 +22,23 @@
 package protocol.swg;
 
 import java.nio.ByteOrder;
-import java.util.Map;
-import java.util.Map.Entry;
 
 import org.apache.mina.core.buffer.IoBuffer;
 import org.apache.mina.core.buffer.SimpleBufferAllocator;
 
+import resources.common.Opcodes;
+import engine.resources.objects.SWGObject;
+
 public class AttributeListMessage extends SWGMessage {
 	
-	private Map<String, String> attributes;
-	private long objectId;
 	private SimpleBufferAllocator bufferPool;
+	private SWGObject target;
 
-	public AttributeListMessage(Map<String, String> attributes, long objectId, SimpleBufferAllocator bufferPool) {
-		this.attributes = attributes;
-		this.objectId = objectId;
+	public AttributeListMessage(SWGObject target, SimpleBufferAllocator bufferPool) {
+		this.target = target;
 		this.bufferPool = bufferPool;
 	}
+
 
 	@Override
 	public void deserialize(IoBuffer data) {
@@ -47,26 +47,27 @@ public class AttributeListMessage extends SWGMessage {
 
 	@Override
 	public IoBuffer serialize() {
-		IoBuffer result = bufferPool.allocate(100, false).order(ByteOrder.LITTLE_ENDIAN);
+		final IoBuffer result = bufferPool.allocate(100, false).order(ByteOrder.LITTLE_ENDIAN);
 		result.setAutoExpand(true);
 		
 		result.putShort((short) 5);
-		result.putInt(0xF3F12F2A);
+		result.putInt(Opcodes.AttributeListMessage);
 		
-		result.putLong(objectId);
+		result.putLong(target.getObjectID());
 		result.putShort((short) 0);
 
-		result.putInt(attributes.size());
-
-		for(Entry<String, String> e : attributes.entrySet()) {
-			result.put(getAsciiString(e.getKey()));
-			result.put(getUnicodeString(e.getValue()));
+		synchronized(target.getMutex()) {
+			result.putInt(target.getAttributes().size());
+			target.getAttributes().forEach((key, value) -> {
+				result.put(getAsciiString(key));
+				result.put(getUnicodeString(value));
+			});
 		}
 		result.putInt(0);
 		int size = result.position();
-		result = bufferPool.allocate(size, false).put(result.array(), 0, size);
+		IoBuffer result2 = bufferPool.allocate(size, false).put(result.array(), 0, size);
 
-		return result.flip();
+		return result2.flip();
 		
 	}
 
